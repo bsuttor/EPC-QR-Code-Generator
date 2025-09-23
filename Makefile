@@ -1,7 +1,7 @@
 # EPC QR Code Generator Makefile
 # Uses uvx for Python package management and execution
 
-.PHONY: help install run dev clean lint format test deps-check
+.PHONY: help install run dev clean lint format test test-unit test-i18n test-qr test-verbose test-coverage deps-check
 
 # Default target
 help:
@@ -17,7 +17,14 @@ help:
 	@echo "  dev         - Run in development mode with auto-reload"
 	@echo "  lint        - Run code linting with ruff"
 	@echo "  format      - Format code with ruff"
-	@echo "  test        - Run tests (placeholder)"
+	@echo ""
+	@echo "Testing:"
+	@echo "  test        - Run all tests with pytest"
+	@echo "  test-unit   - Run unit tests only"
+	@echo "  test-i18n   - Run internationalization tests"
+	@echo "  test-qr     - Run QR code generation tests"
+	@echo "  test-verbose - Run tests with verbose output"
+	@echo "  test-coverage - Run tests with coverage report (if available)"
 	@echo ""
 	@echo "Maintenance:"
 	@echo "  clean       - Clean up temporary files"
@@ -70,9 +77,39 @@ format: deps-check
 	@uvx ruff format app.py || echo "Install ruff for code formatting: uvx install ruff"
 
 # Run tests (placeholder)
+# Testing commands
 test:
-	@echo "Running tests..."
-	@echo "No tests configured yet. Consider adding pytest tests."
+	@echo "🧪 Running all tests with pytest..."
+	@python3 run_tests.py
+
+test-unit:
+	@echo "🧪 Running unit tests..."
+	@python3 run_tests.py tests/test_app.py -v
+
+test-i18n:
+	@echo "🌍 Running internationalization tests..."
+	@python3 run_tests.py tests/test_i18n.py -v
+
+test-qr:
+	@echo "📱 Running QR code generation tests..."
+	@python3 run_tests.py tests/test_qr_code.py -v
+
+test-verbose:
+	@echo "🧪 Running all tests with verbose output..."
+	@python3 run_tests.py tests/ -v -s
+
+test-coverage:
+	@echo "📊 Running tests with coverage (requires pytest-cov)..."
+	@uvx --with pytest --with pytest-cov pytest tests/ --cov=. --cov-report=term-missing --cov-report=html
+
+# Legacy test support (for backwards compatibility)
+test-legacy:
+	@echo "🔄 Running legacy test scripts..."
+	@echo "Moving legacy tests to archive..."
+	@mkdir -p archive
+	@[ -f test_i18n.py ] && mv test_i18n.py archive/ || echo "test_i18n.py already moved"
+	@[ -f test_translations.py ] && mv test_translations.py archive/ || echo "test_translations.py already moved"
+	@echo "✓ Use 'make test' for pytest-based testing"
 
 # Clean temporary files
 clean:
