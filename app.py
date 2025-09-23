@@ -2,6 +2,8 @@ import streamlit as st
 import qrcode
 from io import BytesIO
 from datetime import datetime
+from PIL import Image, ImageDraw
+import base64
 
 
 def generate_epc_data(
@@ -50,11 +52,77 @@ def generate_epc_data(
     return "\n".join(epc_data)
 
 
-def create_qr_code(data: str):
-    """Create QR code from EPC data"""
+def create_default_logo():
+    """Create a simple default logo (Euro symbol)"""
+    logo_size = 60
+    logo = Image.new("RGBA", (logo_size, logo_size), (255, 255, 255, 0))
+    draw = ImageDraw.Draw(logo)
+
+    # Create a white circle background
+    margin = 5
+    draw.ellipse(
+        [margin, margin, logo_size - margin, logo_size - margin],
+        fill=(255, 255, 255, 255),
+        outline=(0, 0, 0, 255),
+        width=2,
+    )
+
+    # Draw Euro symbol (€)
+    # This is a simplified euro symbol
+    center_x, center_y = logo_size // 2, logo_size // 2
+
+    # Draw the "C" part of the Euro symbol
+    draw.arc(
+        [center_x - 15, center_y - 15, center_x + 15, center_y + 15],
+        start=45,
+        end=315,
+        fill=(0, 0, 0, 255),
+        width=3,
+    )
+
+    # Draw the horizontal lines
+    draw.line(
+        [center_x - 18, center_y - 5, center_x + 5, center_y - 5],
+        fill=(0, 0, 0, 255),
+        width=2,
+    )
+    draw.line(
+        [center_x - 18, center_y + 5, center_x + 5, center_y + 5],
+        fill=(0, 0, 0, 255),
+        width=2,
+    )
+
+    return logo
+
+
+def add_logo_to_qr(qr_img, logo_img=None):
+    """Add a logo to the center of the QR code"""
+    if logo_img is None:
+        logo_img = create_default_logo()
+
+    # Convert QR code to RGBA if it isn't already
+    qr_img = qr_img.convert("RGBA")
+
+    # Resize logo to appropriate size (about 1/5 of QR code size)
+    qr_width, qr_height = qr_img.size
+    logo_size = min(qr_width, qr_height) // 5
+    logo_img = logo_img.resize((logo_size, logo_size), Image.Resampling.LANCZOS)
+
+    # Calculate position to center the logo
+    pos_x = (qr_width - logo_size) // 2
+    pos_y = (qr_height - logo_size) // 2
+
+    # Paste the logo onto the QR code
+    qr_img.paste(logo_img, (pos_x, pos_y), logo_img)
+
+    return qr_img
+
+
+def create_qr_code(data: str, add_logo: bool = True, custom_logo=None):
+    """Create QR code from EPC data with optional logo"""
     qr = qrcode.QRCode(
         version=1,
-        error_correction=qrcode.constants.ERROR_CORRECT_M,
+        error_correction=qrcode.constants.ERROR_CORRECT_H,  # Higher error correction for logo
         box_size=10,
         border=4,
     )
@@ -63,6 +131,11 @@ def create_qr_code(data: str):
 
     # Create image
     img = qr.make_image(fill_color="black", back_color="white")
+
+    # Add logo if requested
+    if add_logo:
+        img = add_logo_to_qr(img, custom_logo)
+
     return img
 
 
@@ -167,6 +240,37 @@ def main():
             help="Structured creditor reference (max 35 characters)",
         )
 
+        # Logo Options
+        st.subheader("QR Code Customization")
+        add_logo = st.checkbox(
+            "Add logo to QR code center",
+            value=True,
+            help="Adds a logo in the center of the QR code (uses higher error correction)",
+        )
+
+        logo_option = st.radio(
+            "Logo type:",
+            ["Default (Euro symbol)", "Custom upload"],
+            disabled=not add_logo,
+            help="Choose between a default Euro symbol or upload your own logo",
+        )
+
+        custom_logo = None
+        if add_logo and logo_option == "Custom upload":
+            uploaded_file = st.file_uploader(
+                "Upload your logo",
+                type=["png", "jpg", "jpeg"],
+                help="Recommended: Square image, transparent background, max 2MB",
+            )
+            if uploaded_file is not None:
+                try:
+                    custom_logo = Image.open(uploaded_file).convert("RGBA")
+                    # Show preview
+                    st.image(custom_logo, caption="Logo preview", width=100)
+                except Exception as e:
+                    st.error(f"Error loading logo: {str(e)}")
+                    custom_logo = None
+
         # Validation
         is_valid = bool(beneficiary_name and beneficiary_iban)
 
@@ -184,8 +288,10 @@ def main():
                         debtor_reference=debtor_reference,
                     )
 
-                    # Create QR code
-                    qr_img = create_qr_code(epc_data)
+                    # Create QR code with logo options
+                    qr_img = create_qr_code(
+                        epc_data, add_logo=add_logo, custom_logo=custom_logo
+                    )
 
                     # Store in session state
                     st.session_state.qr_image = qr_img
@@ -268,6 +374,7 @@ def main():
                 - ✅ Follows EPC069-12 standard
                 - ✅ Supports fixed and variable amounts
                 - ✅ Includes payment references
+                - ✅ Optional logo customization with high error correction
                 
                 **Required fields:**
                 - Beneficiary name
@@ -278,6 +385,13 @@ def main():
                 - Amount (leave 0 for variable amount)
                 - Purpose code
                 - Payment reference
+                - Logo in center (Euro symbol or custom upload)
+                
+                **Logo Guidelines:**
+                - Square images work best
+                - PNG format recommended for transparency
+                - Simple designs scan better than complex ones
+                - Always test with your banking app
                 """
                 )
 

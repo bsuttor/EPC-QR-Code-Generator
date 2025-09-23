@@ -9,6 +9,8 @@ A Streamlit web application that generates QR codes for SEPA Credit Transfer acc
 - ✅ **User Friendly**: Clean, intuitive web interface built with Streamlit  
 - ✅ **Flexible Amounts**: Support for both fixed and variable payment amounts
 - ✅ **Complete Payment Info**: Includes beneficiary details, references, and purpose codes
+- ✅ **Custom Logos**: Add logos to the center of QR codes (default Euro symbol or custom upload)
+- ✅ **Smart Error Correction**: Uses high error correction when logos are added
 - ✅ **Instant Download**: Download generated QR codes as PNG images
 - ✅ **Real-time Validation**: Input validation with helpful error messages
 
@@ -63,9 +65,14 @@ make clean       # Clean temporary files
    - Purpose Code (optional, from ISO 20022 standard)
    - Payment Reference/Description
 
-3. **Generate & Download**
+3. **QR Code Customization**
+   - Enable/disable logo in QR code center
+   - Choose default Euro symbol or upload custom logo
+   - Supports PNG, JPG, JPEG formats (square images recommended)
+
+4. **Generate & Download**
    - Click "Generate QR Code"
-   - Preview the QR code
+   - Preview the QR code with logo
    - Download as PNG image
 
 ## EPC QR Code Standard
