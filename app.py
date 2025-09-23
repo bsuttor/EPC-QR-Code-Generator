@@ -4,6 +4,7 @@ from io import BytesIO
 from datetime import datetime
 from PIL import Image, ImageDraw
 import base64
+from i18n import get_text, get_purpose_options, set_streamlit_language
 
 
 def generate_epc_data(
@@ -140,141 +141,123 @@ def create_qr_code(data: str, add_logo: bool = True, custom_logo=None):
 
 
 def main():
+    # Language selection using i18n system
+    lang = set_streamlit_language()
     st.set_page_config(
-        page_title="EPC QR Code Generator", page_icon="🏦", layout="wide"
+        page_title=get_text("main_title", lang),
+        page_icon="🏦",
+        layout="wide",
     )
 
-    st.title("🏦 EPC QR Code Generator")
-    st.markdown(
-        "Generate QR codes for SEPA Credit Transfer according to EPC069-12 standard"
-    )
+    st.title(get_text("main_title", lang))
+    st.markdown(get_text("subtitle", lang))
 
     col1, col2 = st.columns([1, 1])
 
     with col1:
-        st.header("Payment Information")
+        st.header(get_text("payment_info", lang))
 
         # Beneficiary Information
-        st.subheader("Beneficiary Details")
+        st.subheader(get_text("beneficiary_details", lang))
         beneficiary_name = st.text_input(
-            "Beneficiary Name *",
-            placeholder="John Doe",
+            get_text("beneficiary_name", lang) + " *",
+            placeholder=get_text("beneficiary_name_placeholder", lang),
             max_chars=70,
-            help="Maximum 70 characters",
+            help=get_text("beneficiary_name_help", lang),
         )
 
         beneficiary_iban = (
             st.text_input(
-                "Beneficiary IBAN *",
-                placeholder="BE68539007547034",
-                help="International Bank Account Number",
+                get_text("beneficiary_iban", lang) + " *",
+                placeholder=get_text("beneficiary_iban_placeholder", lang),
+                help=get_text("beneficiary_iban_help", lang),
             )
             .replace(" ", "")
             .upper()
         )
 
         bic = st.text_input(
-            "BIC/SWIFT Code",
-            placeholder="GKCCBEBB",
-            help="Bank Identifier Code (optional for SEPA countries)",
+            get_text("bic_swift", lang),
+            placeholder=get_text("bic_swift_placeholder", lang),
+            help=get_text("bic_swift_help", lang),
         ).upper()
 
         # Payment Details
-        st.subheader("Payment Details")
+        st.subheader(get_text("payment_details", lang))
         amount = st.number_input(
-            "Amount (EUR)",
+            get_text("amount", lang),
             min_value=0.0,
             max_value=999999999.99,
             value=0.0,
             step=0.01,
-            help="Leave 0.00 for variable amount",
-        )
-
-        purpose_options = {
-            "": "Not specified",
-            "CBFF": "Capital building",
-            "CHAR": "Charity payment",
-            "COMC": "Commercial payment",
-            "CPKC": "Car park charges",
-            "DIVI": "Dividend",
-            "GOVI": "Government insurance",
-            "GSCI": "Government social contribution",
-            "INST": "Insurance premium",
-            "INTC": "Interest",
-            "LIMA": "Liquidity management",
-            "OTHR": "Other",
-            "RLTI": "Real estate investment",
-            "SALA": "Salary",
-            "SECU": "Securities",
-            "SSBE": "Social security benefit",
-            "SUPP": "Supplier payment",
-            "TAXS": "Tax payment",
-            "TRAD": "Trade",
-            "TREA": "Treasury payment",
-            "VATX": "VAT payment",
-            "WHLD": "Withholding",
-        }
-
-        purpose_key = st.selectbox(
-            "Purpose Code",
-            options=list(purpose_options.keys()),
-            format_func=lambda x: (
-                f"{x} - {purpose_options[x]}" if x else purpose_options[x]
-            ),
-            help="ISO 20022 purpose code",
-        )
-
-        # Remittance Information
-        st.subheader("Remittance Information")
-        remittance_info = st.text_area(
-            "Remittance Information",
-            placeholder="Invoice 2024-001",
-            max_chars=140,
-            help="Payment reference or description (max 140 characters)",
+            help=get_text("amount_help", lang),
         )
 
         debtor_reference = st.text_input(
-            "Structured Reference",
-            placeholder="RF18539007547034",
+            get_text("structured_ref", lang),
+            placeholder=get_text("structured_ref_placeholder", lang),
             max_chars=35,
-            help="Structured creditor reference (max 35 characters)",
+            help=get_text("structured_ref_help", lang),
         )
 
+        purpose_options = get_purpose_options(lang)
+        with st.expander(get_text("purpose_code", lang), expanded=False):
+            purpose_key = st.selectbox(
+                get_text("purpose_code", lang),
+                options=list(purpose_options.keys()),
+                format_func=lambda x: (
+                    f"{x} - {purpose_options[x]}" if x else purpose_options[x]
+                ),
+                help=get_text("purpose_help", lang),
+            )
+
+        with st.expander(get_text("remittance_info", lang), expanded=False):
+            remittance_info = st.text_area(
+                get_text("remittance_info", lang),
+                placeholder=get_text("remittance_info_placeholder", lang),
+                max_chars=140,
+                help=get_text("remittance_info_help", lang),
+            )
+
         # Logo Options
-        st.subheader("QR Code Customization")
+        st.subheader(get_text("qr_customization", lang))
         add_logo = st.checkbox(
-            "Add logo to QR code center",
+            get_text("add_logo", lang),
             value=True,
-            help="Adds a logo in the center of the QR code (uses higher error correction)",
+            help=get_text("add_logo_help", lang),
         )
 
         logo_option = st.radio(
-            "Logo type:",
-            ["Default (Euro symbol)", "Custom upload"],
+            get_text("logo_type", lang),
+            [get_text("default_logo", lang), get_text("custom_upload", lang)],
             disabled=not add_logo,
-            help="Choose between a default Euro symbol or upload your own logo",
+            help=get_text("logo_type_help", lang),
         )
 
         custom_logo = None
-        if add_logo and logo_option == "Custom upload":
+        if add_logo and logo_option == get_text("custom_upload", lang):
             uploaded_file = st.file_uploader(
-                "Upload your logo",
+                get_text("upload_logo", lang),
                 type=["png", "jpg", "jpeg"],
-                help="Recommended: Square image, transparent background, max 2MB",
+                help=get_text("upload_logo_help", lang),
             )
             if uploaded_file is not None:
                 try:
                     custom_logo = Image.open(uploaded_file).convert("RGBA")
                     # Show preview
-                    st.image(custom_logo, caption="Logo preview", width=100)
+                    st.image(
+                        custom_logo, caption=get_text("logo_preview", lang), width=100
+                    )
                 except Exception as e:
-                    st.error(f"Error loading logo: {str(e)}")
+                    st.error(get_text("error_loading_logo", lang) + str(e))
                     custom_logo = None
 
         # Validation
         is_valid = bool(beneficiary_name and beneficiary_iban)
 
-        if st.button("Generate QR Code", disabled=not is_valid, type="primary"):
+        if st.button(
+            get_text("generate_qr", lang), disabled=not is_valid, type="primary"
+        ):
             if is_valid:
                 try:
                     # Generate EPC data
@@ -306,15 +289,15 @@ def main():
                         "debtor_reference": debtor_reference,
                     }
 
-                    st.success("QR Code generated successfully!")
+                    st.success(get_text("qr_generated_success", lang))
 
                 except Exception as e:
-                    st.error(f"Error generating QR code: {str(e)}")
+                    st.error(get_text("error_generating_qr", lang) + str(e))
             else:
-                st.error("Please fill in all required fields (*)")
+                st.error(get_text("fill_required_fields", lang))
 
     with col2:
-        st.header("Generated QR Code")
+        st.header(get_text("generated_qr_code", lang))
 
         if hasattr(st.session_state, "qr_image") and st.session_state.qr_image:
             # Convert PIL image to bytes for display
@@ -323,77 +306,76 @@ def main():
             img_bytes = img_buffer.getvalue()
 
             # Display QR code
-            st.image(img_bytes, caption="EPC QR Code", width=300)
+            st.image(img_bytes, caption=get_text("epc_qr_code", lang), width=300)
 
             # Download button
             st.download_button(
-                label="Download QR Code",
+                label=get_text("download_qr", lang),
                 data=img_bytes,
                 file_name=f"epc_qr_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png",
                 mime="image/png",
             )
 
             # Display payment summary
-            st.subheader("Payment Summary")
+            st.subheader(get_text("payment_summary", lang))
             info = st.session_state.payment_info
 
-            with st.expander("Payment Details", expanded=True):
-                st.write(f"**Beneficiary:** {info['beneficiary_name']}")
-                st.write(f"**IBAN:** {info['beneficiary_iban']}")
+            with st.expander(get_text("payment_details_summary", lang), expanded=True):
+                st.write(
+                    f"**{get_text('beneficiary', lang)}** {info['beneficiary_name']}"
+                )
+                st.write(f"**{get_text('iban', lang)}** {info['beneficiary_iban']}")
                 if info["bic"]:
-                    st.write(f"**BIC:** {info['bic']}")
+                    st.write(f"**{get_text('bic', lang)}** {info['bic']}")
                 if info["amount"] > 0:
-                    st.write(f"**Amount:** EUR {info['amount']:.2f}")
+                    st.write(
+                        f"**{get_text('amount_label', lang)}** EUR {info['amount']:.2f}"
+                    )
                 else:
-                    st.write("**Amount:** Variable")
+                    st.write(
+                        f"**{get_text('amount_label', lang)}** {get_text('amount_variable', lang)}"
+                    )
                 if info["purpose"]:
-                    st.write(f"**Purpose:** {info['purpose']}")
+                    st.write(f"**{get_text('purpose', lang)}** {info['purpose']}")
                 if info["remittance_info"]:
-                    st.write(f"**Reference:** {info['remittance_info']}")
+                    st.write(
+                        f"**{get_text('reference', lang)}** {info['remittance_info']}"
+                    )
                 if info["debtor_reference"]:
-                    st.write(f"**Structured Reference:** {info['debtor_reference']}")
+                    st.write(
+                        f"**{get_text('structured_reference', lang)}** {info['debtor_reference']}"
+                    )
 
             # Show raw EPC data
-            with st.expander("Raw EPC Data"):
+            with st.expander(get_text("raw_epc_data", lang)):
                 st.code(st.session_state.epc_data)
 
         else:
-            st.info(
-                "Fill in the payment information and click 'Generate QR Code' to create your EPC QR code."
-            )
+            st.info(get_text("fill_payment_info", lang))
 
             # Information about EPC QR codes
-            with st.expander("About EPC QR Codes", expanded=True):
-                st.markdown(
-                    """
-                **EPC QR codes** enable easy SEPA payments by scanning with banking apps.
-                
-                **Features:**
-                - ✅ SEPA Credit Transfer compatible
-                - ✅ Works with most European banking apps
-                - ✅ Follows EPC069-12 standard
-                - ✅ Supports fixed and variable amounts
-                - ✅ Includes payment references
-                - ✅ Optional logo customization with high error correction
-                
-                **Required fields:**
-                - Beneficiary name
-                - Beneficiary IBAN
-                
-                **Optional fields:**
-                - BIC (recommended for non-SEPA countries)
-                - Amount (leave 0 for variable amount)
-                - Purpose code
-                - Payment reference
-                - Logo in center (Euro symbol or custom upload)
-                
-                **Logo Guidelines:**
-                - Square images work best
-                - PNG format recommended for transparency
-                - Simple designs scan better than complex ones
-                - Always test with your banking app
+            with st.expander(get_text("about_epc_qr", lang), expanded=True):
+                info_text = f"""
+{get_text("epc_description", lang)}
+
+{get_text("features", lang)}
+- {get_text("sepa_compatible", lang)}
+- {get_text("banking_apps", lang)}
+- {get_text("epc069_standard", lang)}
+- {get_text("flexible_amounts", lang)}
+- {get_text("payment_references", lang)}
+- {get_text("logo_customization", lang)}
+
+{get_text("required_fields", lang)}
+{get_text("required_name_iban", lang)}
+
+{get_text("optional_fields", lang)}
+{get_text("optional_list", lang)}
+
+{get_text("logo_guidelines", lang)}
+{get_text("logo_tips", lang)}
                 """
-                )
+                st.markdown(info_text)
 
 
 if __name__ == "__main__":
