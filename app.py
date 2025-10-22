@@ -3,8 +3,135 @@ import qrcode
 from io import BytesIO
 from datetime import datetime
 from PIL import Image, ImageDraw
-import base64
+from urllib.parse import unquote, quote, urlencode
 from i18n import get_text, get_purpose_options, set_streamlit_language
+
+
+def get_url_params():
+    """
+    Extract URL parameters for pre-filling form fields.
+    Supports the following parameters:
+    - name: Beneficiary name
+    - iban: Beneficiary IBAN
+    - bic: BIC/SWIFT code
+    - amount: Payment amount
+    - purpose: Purpose code
+    - ref: Remittance information/reference
+    - debtor_ref: Structured reference
+    - lang: Language override
+    """
+    params = {}
+
+    # Get URL query parameters from Streamlit
+    query_params = st.query_params if hasattr(st, "query_params") else {}
+
+    # Map URL parameter names to internal field names
+    param_mapping = {
+        "beneficiary_name": "beneficiary_name",
+        "beneficiary_iban": "beneficiary_iban",
+        "bic_swift": "bic",
+        "amount": "amount",
+        "purpose_code": "purpose",
+        "remittance_info": "remittance_info",
+        "structured_ref": "debtor_reference",
+        "lang": "language",
+        # Short aliases for convenience
+        "name": "beneficiary_name",
+        "iban": "beneficiary_iban",
+        "bic": "bic",
+        "purpose": "purpose",
+        "ref": "remittance_info",
+    }
+
+    # Extract and decode parameters
+    for url_param, field_name in param_mapping.items():
+        if url_param in query_params:
+            try:
+                # URL decode the parameter value
+                value = unquote(query_params[url_param])
+                params[field_name] = value
+            except Exception as e:
+                st.sidebar.warning(f"Invalid URL parameter '{url_param}': {e}")
+
+    return params
+
+
+def generate_share_url(params: dict) -> str:
+    """
+    Generate a shareable URL with form parameters.
+
+    Args:
+        params: Dictionary of form parameters
+
+    Returns:
+        Complete URL with query parameters
+    """
+
+    # Map internal field names to URL parameter names
+    reverse_mapping = {
+        "beneficiary_name": "beneficiary_name",
+        "beneficiary_iban": "beneficiary_iban",
+        "bic": "bic_swift",
+        "amount": "amount",
+        "purpose": "purpose_code",
+        "remittance_info": "remittance_info",
+        "debtor_reference": "structured_ref",
+        "language": "lang",
+    }
+
+    # Build query parameters, filtering out empty values
+    query_params = {}
+    for field_name, url_param in reverse_mapping.items():
+        if field_name in params and params[field_name]:
+            # Handle special cases
+            if field_name == "amount" and params[field_name] == 0.0:
+                continue  # Skip zero amounts
+            query_params[url_param] = str(params[field_name])
+
+    # Get current URL base (without query parameters)
+    if hasattr(st, "query_params"):
+        base_url = st.query_params.get("__streamlit_url", "http://localhost:8501")
+    else:
+        base_url = "http://localhost:8501"  # fallback
+
+    if query_params:
+        query_string = urlencode(query_params, safe="", quote_via=quote)
+        return f"{base_url}?{query_string}"
+
+    return base_url
+
+
+def update_url_params(params: dict) -> None:
+    """
+    Update the browser URL with current form parameters.
+
+    Args:
+        params: Dictionary of form parameters to include in URL
+    """
+    if not hasattr(st, "query_params"):
+        return
+
+    # Map internal field names to URL parameter names
+    url_mapping = {
+        "beneficiary_name": "beneficiary_name",
+        "beneficiary_iban": "beneficiary_iban",
+        "bic": "bic_swift",
+        "amount": "amount",
+        "purpose": "purpose_code",
+        "remittance_info": "remittance_info",
+        "debtor_reference": "structured_ref",
+        "language": "lang",
+    }
+
+    # Clear existing parameters and set new ones
+    st.query_params.clear()
+
+    for field_name, value in params.items():
+        if field_name in url_mapping and value:
+            url_param = url_mapping[field_name]
+            # Only add non-empty values
+            if str(value).strip():
+                st.query_params[url_param] = str(value)
 
 
 def generate_epc_data(
@@ -143,6 +270,18 @@ def create_qr_code(data: str, add_logo: bool = True, custom_logo=None):
 def main():
     # Language selection using i18n system
     lang = set_streamlit_language()
+
+    # Get URL parameters for pre-filling form
+    url_params = get_url_params()
+
+    # Override language if specified in URL
+    if "language" in url_params:
+        lang = (
+            url_params["language"]
+            if url_params["language"] in ["en", "fr", "de", "es"]
+            else lang
+        )
+
     st.set_page_config(
         page_title=get_text("main_title", lang),
         page_icon="🏦",
@@ -152,15 +291,89 @@ def main():
     st.title(get_text("main_title", lang))
     st.markdown(get_text("subtitle", lang))
 
+    # Quick QR from URL section
+    with st.expander(get_text("quick_qr_from_url", lang), expanded=False):
+        st.markdown(get_text("quick_qr_explanation", lang))
+
+        # Get current URL base
+        current_url = "http://localhost:8501"  # Default for local development
+        if hasattr(st, "query_params"):
+            try:
+                current_url = st.query_params.get("__streamlit_url", current_url)
+            except Exception:
+                pass
+
+        # Sample URLs with different examples
+        sample_urls = {
+            "en": {
+                "name": "John Doe",
+                "iban": "GB82WEST12345698765432",
+                "amount": "25.50",
+                "ref": "Invoice 123",
+            },
+            "fr": {
+                "name": "Jean Dupont",
+                "iban": "FR1420041010050500013M02606",
+                "amount": "50.00",
+                "ref": "Facture 456",
+            },
+            "de": {
+                "name": "Max Mustermann",
+                "iban": "DE89370400440532013000",
+                "amount": "75.25",
+                "ref": "Rechnung 789",
+            },
+            "es": {
+                "name": "Juan Pérez",
+                "iban": "ES9121000418450200051332",
+                "amount": "100.00",
+                "ref": "Factura 321",
+            },
+        }
+
+        sample = sample_urls.get(lang, sample_urls["en"])
+        sample_url = f"{current_url}/?beneficiary_name={sample['name'].replace(' ', '%20')}&beneficiary_iban={sample['iban']}&amount={sample['amount']}&remittance_info={sample['ref'].replace(' ', '%20')}&lang={lang}"
+
+        st.code(sample_url, language="text")
+
+        col_example1, col_example2 = st.columns([1, 1])
+
+        with col_example1:
+            if st.button(get_text("quick_qr_try", lang), key="try_sample_url"):
+                st.query_params.clear()
+                st.query_params["beneficiary_name"] = sample["name"]
+                st.query_params["beneficiary_iban"] = sample["iban"]
+                st.query_params["amount"] = sample["amount"]
+                st.query_params["remittance_info"] = sample["ref"]
+                st.query_params["lang"] = lang
+                st.rerun()
+
+        with col_example2:
+            st.link_button(
+                get_text("url_parameters_guide", lang),
+                "https://github.com/bsuttor/qr-epc#-url-parameters-for-pre-filled-forms",
+            )
+
+    # Show URL sharing info if parameters were detected
+    if url_params and any(k != "language" for k in url_params.keys()):
+        st.info(f"🔗 {get_text('url_prefilled', lang)}")
+
     col1, col2 = st.columns([1, 1])
 
     with col1:
         st.header(get_text("payment_info", lang))
 
+        # Show info about URL updating when form is generated
+        if url_params:
+            st.info(get_text("url_prefilled", lang))
+        else:
+            st.info(get_text("url_updates_info", lang))
+
         # Beneficiary Information
         st.subheader(get_text("beneficiary_details", lang))
         beneficiary_name = st.text_input(
             get_text("beneficiary_name", lang) + " *",
+            value=url_params.get("beneficiary_name", ""),
             placeholder=get_text("beneficiary_name_placeholder", lang),
             max_chars=70,
             help=get_text("beneficiary_name_help", lang),
@@ -169,6 +382,7 @@ def main():
         beneficiary_iban = (
             st.text_input(
                 get_text("beneficiary_iban", lang) + " *",
+                value=url_params.get("beneficiary_iban", ""),
                 placeholder=get_text("beneficiary_iban_placeholder", lang),
                 help=get_text("beneficiary_iban_help", lang),
             )
@@ -178,23 +392,34 @@ def main():
 
         bic = st.text_input(
             get_text("bic_swift", lang),
+            value=url_params.get("bic", ""),
             placeholder=get_text("bic_swift_placeholder", lang),
             help=get_text("bic_swift_help", lang),
         ).upper()
 
         # Payment Details
         st.subheader(get_text("payment_details", lang))
+
+        # Handle amount from URL parameter
+        default_amount = 0.0
+        if "amount" in url_params:
+            try:
+                default_amount = float(url_params["amount"])
+            except ValueError:
+                st.warning(f"Invalid amount in URL: {url_params['amount']}")
+
         amount = st.number_input(
             get_text("amount", lang),
             min_value=0.0,
             max_value=999999999.99,
-            value=0.0,
+            value=default_amount,
             step=0.01,
             help=get_text("amount_help", lang),
         )
 
         debtor_reference = st.text_input(
             get_text("structured_ref", lang),
+            value=url_params.get("debtor_reference", ""),
             placeholder=get_text("structured_ref_placeholder", lang),
             max_chars=35,
             help=get_text("structured_ref_help", lang),
@@ -202,9 +427,16 @@ def main():
 
         purpose_options = get_purpose_options(lang)
         with st.expander(get_text("purpose_code", lang), expanded=False):
+            # Find default purpose index from URL parameter
+            purpose_default_index = 0
+            purpose_keys = list(purpose_options.keys())
+            if "purpose" in url_params and url_params["purpose"] in purpose_keys:
+                purpose_default_index = purpose_keys.index(url_params["purpose"])
+
             purpose_key = st.selectbox(
                 get_text("purpose_code", lang),
-                options=list(purpose_options.keys()),
+                options=purpose_keys,
+                index=purpose_default_index,
                 format_func=lambda x: (
                     f"{x} - {purpose_options[x]}" if x else purpose_options[x]
                 ),
@@ -214,6 +446,7 @@ def main():
         with st.expander(get_text("remittance_info", lang), expanded=False):
             remittance_info = st.text_area(
                 get_text("remittance_info", lang),
+                value=url_params.get("remittance_info", ""),
                 placeholder=get_text("remittance_info_placeholder", lang),
                 max_chars=140,
                 help=get_text("remittance_info_help", lang),
@@ -289,7 +522,20 @@ def main():
                         "debtor_reference": debtor_reference,
                     }
 
-                    st.success(get_text("qr_generated_success", lang))
+                    st.success(get_text("qr_code_generated", lang))
+
+                    # Update URL parameters to reflect current form state
+                    current_params = {
+                        "beneficiary_name": beneficiary_name,
+                        "beneficiary_iban": beneficiary_iban,
+                        "bic": bic,
+                        "amount": amount,
+                        "purpose": purpose_key,
+                        "remittance_info": remittance_info,
+                        "debtor_reference": debtor_reference,
+                        "language": lang,
+                    }
+                    update_url_params(current_params)
 
                 except Exception as e:
                     st.error(get_text("error_generating_qr", lang) + str(e))
@@ -315,6 +561,51 @@ def main():
                 file_name=f"epc_qr_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png",
                 mime="image/png",
             )
+
+            # URL Sharing functionality
+            st.subheader(get_text("share_url", lang))
+
+            # Generate shareable URL with current form values
+            current_params = {
+                "beneficiary_name": beneficiary_name,
+                "beneficiary_iban": beneficiary_iban,
+                "bic": bic,
+                "amount": amount,
+                "purpose": purpose_key,
+                "remittance_info": remittance_info,
+                "debtor_reference": debtor_reference,
+                "language": lang,
+            }
+
+            share_url = generate_share_url(current_params)
+
+            # Display shareable URL
+            st.text_area(
+                get_text("shareable_url", lang),
+                value=share_url,
+                height=100,
+                help=get_text("shareable_url_help", lang),
+            )
+
+            # Copy to clipboard button (using st.code for easy copying)
+            col_copy1, col_copy2 = st.columns([3, 1])
+            with col_copy1:
+                if st.button(get_text("copy_url", lang)):
+                    st.success(get_text("url_copied", lang))
+                    # JavaScript to copy to clipboard
+                    st.components.v1.html(
+                        f"""
+                    <script>
+                    navigator.clipboard.writeText('{share_url}').then(function() {{
+                        console.log('URL copied to clipboard');
+                    }});
+                    </script>
+                    """,
+                        height=0,
+                    )
+
+            with col_copy2:
+                st.markdown(f"📋 [Preview]({share_url})")
 
             # Display payment summary
             st.subheader(get_text("payment_summary", lang))
