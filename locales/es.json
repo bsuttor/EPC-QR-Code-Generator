@@ -95,5 +95,17 @@
     "TREA": "Pago de tesorería",
     "VATX": "Pago de IVA",
     "WHLD": "Retención"
-  }
+  },
+  "url_prefilled": "Formulario prellenado desde parámetros URL",
+  "url_updates_info": "💡 La URL se actualizará automáticamente cuando generes un código QR, facilitando compartir tu formulario de pago",
+  "quick_qr_from_url": "⚡ QR rápido desde URL",
+  "quick_qr_explanation": "Puedes crear códigos QR al instante añadiendo detalles de pago a la URL:",
+  "quick_qr_example": "Ejemplo: Añade ?beneficiary_name=Juan%20Pérez&beneficiary_iban=ES9121000418450200051332&amount=25.50 a la URL",
+  "quick_qr_try": "Prueba: Haz clic para probar con datos de ejemplo",
+  "url_parameters_guide": "📖 Guía de parámetros URL",
+  "share_url": "🔗 Compartir URL",
+  "shareable_url": "URL compartible",
+  "shareable_url_help": "Copia esta URL para compartir el formulario de pago actual con otros",
+  "copy_url": "📋 Copiar URL",
+  "url_copied": "¡URL copiada al portapapeles!"
 }

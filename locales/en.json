@@ -95,5 +95,17 @@
     "TREA": "Treasury payment",
     "VATX": "VAT payment",
     "WHLD": "Withholding"
-  }
+  },
+  "url_prefilled": "Form pre-filled from URL parameters",
+  "url_updates_info": "💡 The URL will automatically update when you generate a QR code, making it easy to share your payment form",
+  "quick_qr_from_url": "⚡ Quick QR from URL",
+  "quick_qr_explanation": "You can create QR codes instantly by adding payment details to the URL:",
+  "quick_qr_example": "Example: Add ?beneficiary_name=John%20Doe&beneficiary_iban=GB82WEST12345698765432&amount=25.50 to the URL",
+  "quick_qr_try": "Try it: Click to test with sample data",
+  "url_parameters_guide": "📖 URL Parameters Guide",
+  "share_url": "🔗 Share URL",
+  "shareable_url": "Shareable URL",
+  "shareable_url_help": "Copy this URL to share the current payment form with others",
+  "copy_url": "📋 Copy URL",
+  "url_copied": "URL copied to clipboard!"
 }
