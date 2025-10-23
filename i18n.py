@@ -306,13 +306,23 @@ def _map_language_code_to_supported(
 
 
 def set_streamlit_language():
-    """Set up language selection in Streamlit footer with browser language detection"""
+    """Set up language selection with URL parameter support and browser language detection"""
     languages = get_supported_languages()
 
     if not languages:
         return "fr"  # Default to French even if no translations loaded
 
-    # Detect browser language as default
+    # Check URL parameter first
+    url_lang = None
+    if hasattr(st, "query_params"):
+        url_lang = st.query_params.get("lang")
+        if url_lang and url_lang in languages:
+            # URL language takes priority
+            if "language_selector" not in st.session_state:
+                st.session_state.language_selector = url_lang
+            return url_lang
+
+    # Detect browser language as fallback
     browser_lang = detect_browser_language()
     default_index = 0
     if browser_lang in languages:
@@ -321,9 +331,15 @@ def set_streamlit_language():
     # Return detected language for initial page render
     # The language selector will be rendered separately in the footer
     if "language_selector" not in st.session_state:
-        st.session_state.language_selector = (
-            browser_lang if browser_lang in languages else languages[default_index]
+        # Use URL param if available, otherwise browser detection
+        initial_lang = (
+            url_lang
+            if url_lang and url_lang in languages
+            else (
+                browser_lang if browser_lang in languages else languages[default_index]
+            )
         )
+        st.session_state.language_selector = initial_lang
 
     return st.session_state.language_selector
 
@@ -413,6 +429,9 @@ def render_language_footer():
         # Update session state if selection changed
         if selected_lang != st.session_state.get("language_selector"):
             st.session_state.language_selector = selected_lang
+            # Update URL parameter to persist language selection
+            if hasattr(st, "query_params"):
+                st.query_params["lang"] = selected_lang
             st.rerun()
 
         # Show translation completeness info
