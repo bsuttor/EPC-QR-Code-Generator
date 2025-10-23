@@ -5,6 +5,7 @@ Internationalization (i18n) module for EPC QR Code Generator
 import json
 import os
 from typing import Dict, Any
+from click import style
 import streamlit as st
 import streamlit.components.v1 as components
 
@@ -45,18 +46,18 @@ class I18n:
     def get_language_display_name(self, lang_code: str) -> str:
         """Get display name for language code"""
         display_names = {
-            "en": "🇬🇧 English",
-            "fr": "🇫🇷 Français",
-            "de": "🇩🇪 Deutsch",
-            "es": "🇪🇸 Español",
-            "it": "🇮🇹 Italiano",
-            "nl": "🇳🇱 Nederlands",
-            "pt": "🇵🇹 Português",
-            "pl": "🇵🇱 Polski",
-            "sv": "🇸🇪 Svenska",
-            "da": "🇩🇰 Dansk",
-            "no": "🇳🇴 Norsk",
-            "fi": "🇫🇮 Suomi",
+            "en": "English",
+            "fr": "Français",
+            "de": "Deutsch",
+            "es": "Español",
+            "it": "Italiano",
+            "nl": "Nederlands",
+            "pt": "Português",
+            "pl": "Polski",
+            "sv": "Svenska",
+            "da": "Dansk",
+            "no": "Norsk",
+            "fi": "Suomi",
         }
         return display_names.get(lang_code, f"{lang_code.upper()}")
 
@@ -216,6 +217,9 @@ def detect_browser_language():
                 elif "Europe/London" in local_tz:
                     if "en" in languages:
                         detected_lang = "en"
+                elif "Europe/Amsterdam" in local_tz or "Europe/Brussels" in local_tz:
+                    if "nl" in languages:
+                        detected_lang = "nl"
             except Exception:
                 pass
 
@@ -270,7 +274,7 @@ def _map_language_code_to_supported(
 
     # Language family mappings
     language_mappings = {
-        # Germanic languages -> German or English
+        # Germanic languages -> German, Dutch or English
         "de": "de",
         "at": "de",
         "ch": "de",  # German, Austrian, Swiss
@@ -279,9 +283,10 @@ def _map_language_code_to_supported(
         "gb": "en",
         "au": "en",
         "ca": "en",  # English variants
+        "nl": "nl",
+        "be": "nl",  # Dutch, Belgian (prefer Dutch over French for Belgium)
         # Romance languages -> French or Spanish
         "fr": "fr",
-        "be": "fr",  # French, Belgian
         "es": "es",
         "mx": "es",
         "ar": "es",
@@ -289,7 +294,6 @@ def _map_language_code_to_supported(
         "it": "fr",  # Italian -> French (similar Romance language)
         "pt": "es",  # Portuguese -> Spanish (similar Romance language)
         # Other European languages -> closest available
-        "nl": "de",  # Dutch -> German
         "da": "de",  # Danish -> German
         "sv": "de",  # Swedish -> German
         "no": "de",  # Norwegian -> German
@@ -302,7 +306,7 @@ def _map_language_code_to_supported(
 
 
 def set_streamlit_language():
-    """Set up language selection in Streamlit sidebar with browser language detection"""
+    """Set up language selection in Streamlit footer with browser language detection"""
     languages = get_supported_languages()
 
     if not languages:
@@ -314,8 +318,78 @@ def set_streamlit_language():
     if browser_lang in languages:
         default_index = languages.index(browser_lang)
 
-    with st.sidebar:
-        st.markdown("### 🌍 Language")
+    # Return detected language for initial page render
+    # The language selector will be rendered separately in the footer
+    if "language_selector" not in st.session_state:
+        st.session_state.language_selector = (
+            browser_lang if browser_lang in languages else languages[default_index]
+        )
+
+    return st.session_state.language_selector
+
+
+def render_language_footer():
+    """Render language selection footer"""
+    languages = get_supported_languages()
+
+    if not languages:
+        return
+
+    # Detect browser language as default
+    browser_lang = detect_browser_language()
+    default_index = 0
+    if browser_lang in languages:
+        default_index = languages.index(browser_lang)
+
+    # Create footer with language selector
+    st.markdown("---")
+
+    # Get current selection index (needed for both columns)
+    current_lang = st.session_state.get("language_selector", browser_lang)
+    current_index = (
+        languages.index(current_lang) if current_lang in languages else default_index
+    )
+
+    # Create columns for footer layout
+    col1, col2, col3 = st.columns([1, 2, 1])
+
+    with col3:
+        # Attribution section
+        st.markdown(
+            f"""
+            <style>
+            a {{
+                text-decoration: none !important;
+                color: inherit !important;
+            }}
+            a:hover {{
+                text-decoration: none !important;
+                color: inherit !important;
+            }}
+            </style>
+            <div style="text-align: left; font-size: 0.8em; color: #666; margin-top: 20px;">
+                <span>
+                    {get_text('app_created', current_lang)} <a href="https://github.com/bsuttor" target="_blank">Benoît Suttor</a> {get_text('under_license', current_lang)}
+                </span>
+                <span>
+                    <a href="https://github.com/bsuttor" target="_blank" style="margin: 1em;">
+                        <svg width="16" height="16" fill="#666" viewBox="0 0 24 24">
+                            <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+                        </svg>
+                    </a>
+                    <a href="https://twitter.com/bensuttor" target="_blank">
+                        <svg width="16" height="16" fill="#666" viewBox="0 0 24 24">
+                            <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+                        </svg>
+                    </a>
+                </span>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+    with col1:
+        # st.markdown("### 🌍 Language / Langue / Sprache / Idioma / Taal")
 
         # Show detected language info
         detection_method = st.session_state.get("detection_method", "default")
@@ -327,23 +401,26 @@ def set_streamlit_language():
                 st.caption(f"🌐 Browser: {detected_display}")
 
         selected_lang = st.selectbox(
-            "",
+            "Select Language",
             languages,
-            index=default_index,
+            index=current_index,
             format_func=get_language_display_name,
-            key="language_selector",
+            key="language_selector_footer",
             label_visibility="collapsed",
             help="Language auto-detected from system preferences. You can change it anytime.",
         )
 
-        # Show translation completeness info
-        if st.checkbox("Show translation info", False):
-            for lang in languages:
-                translations = _i18n._translations.get(lang, {})
-                total_keys = len(translations)
-                st.write(f"{get_language_display_name(lang)}: {total_keys} keys")
+        # Update session state if selection changed
+        if selected_lang != st.session_state.get("language_selector"):
+            st.session_state.language_selector = selected_lang
+            st.rerun()
 
-    return selected_lang
+        # Show translation completeness info
+        # if st.checkbox("Show translation info", False):
+        #     for lang in languages:
+        #         translations = _i18n._translations.get(lang, {})
+        #         total_keys = len(translations)
+        #         st.write(f"{get_language_display_name(lang)}: {total_keys} keys")
 
 
 # Initialize on import
