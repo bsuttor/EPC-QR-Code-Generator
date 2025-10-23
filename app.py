@@ -4,7 +4,12 @@ from io import BytesIO
 from datetime import datetime
 from PIL import Image, ImageDraw
 from urllib.parse import unquote, quote, urlencode
-from i18n import get_text, get_purpose_options, set_streamlit_language
+from i18n import (
+    get_text,
+    get_purpose_options,
+    set_streamlit_language,
+    render_language_footer,
+)
 
 
 def get_url_params():
@@ -276,11 +281,15 @@ def main():
 
     # Override language if specified in URL
     if "language" in url_params:
-        lang = (
+        url_lang = (
             url_params["language"]
-            if url_params["language"] in ["en", "fr", "de", "es"]
+            if url_params["language"] in ["en", "fr", "de", "es", "nl"]
             else lang
         )
+        # Update session state if URL language is different
+        if url_lang != lang:
+            st.session_state.language_selector = url_lang
+            lang = url_lang
 
     st.set_page_config(
         page_title=get_text("main_title", lang),
@@ -288,7 +297,27 @@ def main():
         layout="wide",
     )
 
-    st.title(get_text("main_title", lang))
+    # Create clickable title that links to home page
+    st.markdown(
+        f"""
+        <style>
+        .stApp > div:first-child {{
+            max-width: 1600px;
+            margin: 0 auto;
+        }}
+        h1 a {{
+            text-decoration: none !important;
+            color: inherit !important;
+        }}
+        h1 a:hover {{
+            text-decoration: none !important;
+            color: inherit !important;
+        }}
+        </style>
+        # [{get_text('main_title', lang)}](/)
+        """,
+        unsafe_allow_html=True,
+    )
     st.markdown(get_text("subtitle", lang))
 
     # Quick QR from URL section
@@ -329,10 +358,16 @@ def main():
                 "amount": "100.00",
                 "ref": "Factura 321",
             },
+            "nl": {
+                "name": "Jan de Vries",
+                "iban": "NL91ABNA0417164300",
+                "amount": "42.75",
+                "ref": "Factuur 2024-456",
+            },
         }
 
         sample = sample_urls.get(lang, sample_urls["en"])
-        sample_url = f"{current_url}/?beneficiary_name={sample['name'].replace(' ', '%20')}&beneficiary_iban={sample['iban']}&amount={sample['amount']}&remittance_info={sample['ref'].replace(' ', '%20')}&lang={lang}"
+        sample_url = f"{current_url}/?beneficiary_name={sample['name'].replace(' ', '%20')}&beneficiary_iban={sample['iban']}&amount={sample['amount']}&structured_ref={sample['ref'].replace(' ', '%20')}&lang={lang}"
 
         st.code(sample_url, language="text")
 
@@ -344,19 +379,19 @@ def main():
                 st.query_params["beneficiary_name"] = sample["name"]
                 st.query_params["beneficiary_iban"] = sample["iban"]
                 st.query_params["amount"] = sample["amount"]
-                st.query_params["remittance_info"] = sample["ref"]
+                st.query_params["structured_ref"] = sample["ref"]
                 st.query_params["lang"] = lang
                 st.rerun()
 
         with col_example2:
             st.link_button(
                 get_text("url_parameters_guide", lang),
-                "https://github.com/bsuttor/qr-epc#-url-parameters-for-pre-filled-forms",
+                "https://github.com/bsuttor/EPC-QR-Code-Generator/tree/main?tab=readme-ov-file#supported-url-parameters",
             )
 
     # Show URL sharing info if parameters were detected
-    if url_params and any(k != "language" for k in url_params.keys()):
-        st.info(f"🔗 {get_text('url_prefilled', lang)}")
+    # if url_params and any(k != "language" for k in url_params.keys()):
+    #     st.info(f"🔗 {get_text('url_prefilled', lang)}")
 
     col1, col2 = st.columns([1, 1])
 
@@ -364,10 +399,10 @@ def main():
         st.header(get_text("payment_info", lang))
 
         # Show info about URL updating when form is generated
-        if url_params:
-            st.info(get_text("url_prefilled", lang))
-        else:
-            st.info(get_text("url_updates_info", lang))
+        # if url_params:
+        #     st.info(get_text("url_prefilled", lang))
+        # else:
+        #     st.info(get_text("url_updates_info", lang))
 
         # Beneficiary Information
         st.subheader(get_text("beneficiary_details", lang))
@@ -462,13 +497,27 @@ def main():
 
         logo_option = st.radio(
             get_text("logo_type", lang),
-            [get_text("default_logo", lang), get_text("custom_upload", lang)],
+            [
+                get_text("default_logo", lang),
+                get_text("papas_logo", lang),
+                get_text("custom_upload", lang),
+            ],
             disabled=not add_logo,
             help=get_text("logo_type_help", lang),
         )
 
         custom_logo = None
-        if add_logo and logo_option == get_text("custom_upload", lang):
+        if add_logo and logo_option == get_text("papas_logo", lang):
+            # Load papas logo
+            try:
+                papas_logo = Image.open("logo_papas.jpg").convert("RGBA")
+                custom_logo = papas_logo
+                # Show preview
+                st.image(custom_logo, caption=get_text("logo_preview", lang), width=100)
+            except Exception as e:
+                st.error(get_text("error_loading_logo", lang) + str(e))
+                custom_logo = None
+        elif add_logo and logo_option == get_text("custom_upload", lang):
             uploaded_file = st.file_uploader(
                 get_text("upload_logo", lang),
                 type=["png", "jpg", "jpeg"],
@@ -645,7 +694,7 @@ def main():
             st.info(get_text("fill_payment_info", lang))
 
             # Information about EPC QR codes
-            with st.expander(get_text("about_epc_qr", lang), expanded=True):
+            with st.expander(get_text("about_epc_qr", lang), expanded=False):
                 info_text = f"""
 {get_text("epc_description", lang)}
 
@@ -667,6 +716,9 @@ def main():
 {get_text("logo_tips", lang)}
                 """
                 st.markdown(info_text)
+
+    # Render language selection footer
+    render_language_footer()
 
 
 if __name__ == "__main__":

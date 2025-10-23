@@ -1,7 +1,7 @@
 # EPC QR Code Generator Makefile
 # Uses uvx for Python package management and execution
 
-.PHONY: help install run dev clean lint format test test-unit test-i18n test-qr test-verbose test-coverage deps-check
+.PHONY: help install run dev clean lint format test test-unit test-i18n test-qr test-verbose test-coverage deps-check i18n-check i18n-validate i18n-stats i18n-sync i18n-extract
 
 # Default target
 help:
@@ -25,6 +25,13 @@ help:
 	@echo "  test-qr     - Run QR code generation tests"
 	@echo "  test-verbose - Run tests with verbose output"
 	@echo "  test-coverage - Run tests with coverage report (if available)"
+	@echo ""
+	@echo "Internationalization:"
+	@echo "  i18n-check    - Check translation files for consistency"
+	@echo "  i18n-validate - Validate JSON syntax in all translation files"
+	@echo "  i18n-stats    - Show translation statistics and coverage"
+	@echo "  i18n-sync     - Sync translation keys across all languages"
+	@echo "  i18n-extract  - Extract translatable strings from code"
 	@echo ""
 	@echo "Maintenance:"
 	@echo "  clean       - Clean up temporary files"
@@ -102,14 +109,21 @@ test-coverage:
 	@echo "📊 Running tests with coverage (requires pytest-cov)..."
 	@uvx --with pytest --with pytest-cov pytest tests/ --cov=. --cov-report=term-missing --cov-report=html
 
-# Legacy test support (for backwards compatibility)
-test-legacy:
-	@echo "🔄 Running legacy test scripts..."
-	@echo "Moving legacy tests to archive..."
-	@mkdir -p archive
-	@[ -f test_i18n.py ] && mv test_i18n.py archive/ || echo "test_i18n.py already moved"
-	@[ -f test_translations.py ] && mv test_translations.py archive/ || echo "test_translations.py already moved"
-	@echo "✓ Use 'make test' for pytest-based testing"
+# Internationalization commands
+i18n-check:
+	@python3 i18n_tools.py check
+
+i18n-validate:
+	@python3 i18n_tools.py validate
+
+i18n-stats:
+	@python3 i18n_tools.py stats
+
+i18n-sync:
+	@python3 i18n_tools.py sync
+
+i18n-extract:
+	@python3 i18n_tools.py extract
 
 # Clean temporary files
 clean:
@@ -127,13 +141,6 @@ upgrade: deps-check
 	@uvx --from streamlit --version
 	@echo "✓ Using latest versions with uvx"
 
-# Create a simple test
-create-test:
-	@echo "Creating a basic test file..."
-	@mkdir -p tests
-	@echo 'def test_basic():\n    assert True' > tests/test_basic.py
-	@echo "✓ Created tests/test_basic.py"
-
 # Show app info
 info:
 	@echo "EPC QR Code Generator Information"
@@ -146,20 +153,20 @@ info:
 	@echo "  make install  # Setup dependencies"
 	@echo "  make run      # Start the app"
 
-# Docker-related commands (bonus)
-docker-build:
-	@echo "Building Docker image..."
-	@docker build -t epc-qr-generator .
+# # Docker-related commands (bonus)
+# docker-build:
+# 	@echo "Building Docker image..."
+# 	@docker build -t epc-qr-generator .
 
-docker-run:
-	@echo "Running Docker container..."
-	@docker run -p 8501:8501 epc-qr-generator
+# docker-run:
+# 	@echo "Running Docker container..."
+# 	@docker run -p 8501:8501 epc-qr-generator
 
-# Create Dockerfile
-create-dockerfile:
-	@echo "Creating Dockerfile..."
-	@echo 'FROM python:3.11-slim\nWORKDIR /app\nRUN pip install uv\nCOPY app.py requirements.txt ./\nRUN uv pip install --system -r requirements.txt\nEXPOSE 8501\nCMD ["streamlit", "run", "app.py", "--server.address", "0.0.0.0"]' > Dockerfile
-	@echo "✓ Created Dockerfile"
+# # Create Dockerfile
+# create-dockerfile:
+# 	@echo "Creating Dockerfile..."
+# 	@echo 'FROM python:3.11-slim\nWORKDIR /app\nRUN pip install uv\nCOPY app.py requirements.txt ./\nRUN uv pip install --system -r requirements.txt\nEXPOSE 8501\nCMD ["streamlit", "run", "app.py", "--server.address", "0.0.0.0"]' > Dockerfile
+# 	@echo "✓ Created Dockerfile"
 
 # Show dependency tree
 deps-tree: deps-check
