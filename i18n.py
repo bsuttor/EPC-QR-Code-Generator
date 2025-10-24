@@ -400,6 +400,11 @@ def render_language_footer():
                     </a>
                 </span>
             </div>
+            <div style="text-align: left; font-size: 0.8em; color: #666; margin-top: 20px;">
+                <span>
+                    <a href="https://github.com/bsuttor/EPC-QR-Code-Generator" target="_blank">{get_text('feel_free_to_contribute', current_lang)}</a>
+                </span>
+            </div>
             """,
             unsafe_allow_html=True,
         )
