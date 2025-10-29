@@ -96,6 +96,8 @@ http://localhost:8501/?beneficiary_name=Charity%20Foundation&beneficiary_iban=DE
 | `remittance_info` | Payment reference/description | `Invoice%20INV-001` | URL encoded |
 | `structured_ref` | Structured creditor reference | `RF18539007547034` | Optional |
 | `lang` | Interface language | `en`, `fr`, `de`, `es` | Auto-detected if not provided |
+| `hide` | Hide all fields except amount | `true` | Optional |
+| `logo` | Logo in center of QR code | `default`, `papas`, `none` | Optional |
 
 ### URL Encoding
 

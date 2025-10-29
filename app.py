@@ -25,6 +25,7 @@ def get_url_params():
     - debtor_ref: Structured reference
     - lang: Language override
     - hide: Hide all fields except amount (any value activates this)
+    - logo: Logo type (default, papas, none)
     """
     params = {}
 
@@ -42,6 +43,7 @@ def get_url_params():
         "structured_ref": "debtor_reference",
         "lang": "language",
         "hide": "hide",
+        "logo": "logo",
         # Short aliases for convenience
         "name": "beneficiary_name",
         "iban": "beneficiary_iban",
@@ -331,9 +333,9 @@ def main():
 
         # Get current URL base
         current_url = "http://localhost:8501"  # Default for local development
-        if hasattr(st, "query_params"):
+        if hasattr(st.context, "url"):
             try:
-                current_url = st.query_params.get("__streamlit_url", current_url)
+                current_url = getattr(st.context, "url", current_url)
             except Exception:
                 pass
 
@@ -375,7 +377,7 @@ def main():
         sample_url = f"{current_url}/?beneficiary_name={sample['name'].replace(' ', '%20')}&beneficiary_iban={sample['iban']}&amount={sample['amount']}&structured_ref={sample['ref'].replace(' ', '%20')}&lang={lang}"
 
         # Hide mode example
-        hide_sample_url = f"{current_url}/?hide&name={sample['name'].replace(' ', '%20')}&iban={sample['iban']}&amount={sample['amount']}&lang={lang}"
+        hide_sample_url = f"{current_url}/?hide&name={sample['name'].replace(' ', '%20')}&iban={sample['iban']}&amount={sample['amount']}&logo=papas&lang={lang}"
 
         st.markdown("**Regular mode (all fields visible):**")
         st.code(sample_url, language="text")
@@ -402,6 +404,7 @@ def main():
                 st.query_params["name"] = sample["name"]
                 st.query_params["iban"] = sample["iban"]
                 st.query_params["amount"] = sample["amount"]
+                st.query_params["logo"] = "papas"
                 st.query_params["lang"] = lang
                 st.rerun()
 
@@ -421,10 +424,10 @@ def main():
         st.header(get_text("payment_info", lang))
 
         # Show info message when hide mode is active
-        if hide_fields:
-            st.info(
-                "🔒 Simplified mode: Only amount field is visible. Other payment details are pre-filled from URL parameters."
-            )
+        # if hide_fields:
+        #     st.info(
+        #         "🔒 Simplified mode: Only amount field is visible. Other payment details are pre-filled from URL parameters."
+        #     )
 
         # Show info about URL updating when form is generated
         # if url_params:
@@ -540,19 +543,33 @@ def main():
         # Logo Options
         if not hide_fields:
             st.subheader(get_text("qr_customization", lang))
+
+            # Determine default values from URL parameters
+            logo_param = url_params.get("logo", "default").lower()
+            default_add_logo = logo_param != "none"
+
+            # Map logo parameter to radio option index
+            logo_options = [
+                get_text("default_logo", lang),
+                get_text("papas_logo", lang),
+                get_text("custom_upload", lang),
+            ]
+            default_logo_index = 0  # default logo
+            if logo_param == "papas":
+                default_logo_index = 1
+            elif logo_param == "custom":
+                default_logo_index = 2
+
             add_logo = st.checkbox(
                 get_text("add_logo", lang),
-                value=True,
+                value=default_add_logo,
                 help=get_text("add_logo_help", lang),
             )
 
             logo_option = st.radio(
                 get_text("logo_type", lang),
-                [
-                    get_text("default_logo", lang),
-                    get_text("papas_logo", lang),
-                    get_text("custom_upload", lang),
-                ],
+                logo_options,
+                index=default_logo_index,
                 disabled=not add_logo,
                 help=get_text("logo_type_help", lang),
             )
@@ -590,8 +607,21 @@ def main():
                         custom_logo = None
         else:
             # Use default settings when hide mode is active
-            add_logo = True
-            custom_logo = None
+            # Check URL parameter for logo preference
+            logo_param = url_params.get("logo", "default").lower()
+            if logo_param == "none":
+                add_logo = False
+                custom_logo = None
+            elif logo_param == "papas":
+                add_logo = True
+                try:
+                    papas_logo = Image.open("logo_papas.jpg").convert("RGBA")
+                    custom_logo = papas_logo
+                except Exception:
+                    custom_logo = None
+            else:  # default or any other value
+                add_logo = True
+                custom_logo = None
 
         # Validation
         if hide_fields:
