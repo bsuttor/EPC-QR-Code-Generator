@@ -1,0 +1,31 @@
+name: Wake up Streamlit App
+
+on:
+  # Schedule to run every 10 hours.
+  # Streamlit free apps sleep after 12 hours of inactivity.
+  # This interval ensures the app stays awake.
+  schedule:
+    - cron: '0 */10 * * *'
+  # Allow running the workflow manually from the Actions tab
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      # Grant write permission to the GITHUB_TOKEN to commit and push changes.
+      contents: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          # This line fetches the entire history, which is required for making commits.
+          fetch-depth: 0
+      - name: Configure Git
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "github-actions@github.com"
+      - name: Create and push empty commit
+        run: |
+          git commit --allow-empty -m "Wake up Streamlit app"
+          git push origin main
