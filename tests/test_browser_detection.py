@@ -41,7 +41,7 @@ class TestLanguageMapping:
             ("it", "fr"),  # Italian -> French
             ("pt", "es"),  # Portuguese -> Spanish
             # Germanic language mappings
-            ("nl", "de"),  # Dutch -> German
+            ("nl", "nl"),  # Dutch -> Dutch
             ("da", "de"),  # Danish -> German
             ("sv", "de"),  # Swedish -> German
             # Fallback cases
@@ -60,7 +60,8 @@ class TestLanguageMapping:
         assert "fr" in self.supported
         assert "de" in self.supported
         assert "es" in self.supported
-        assert len(self.supported) == 4
+        assert "nl" in self.supported
+        assert len(self.supported) == 5
 
 
 class TestAcceptLanguageParsing:

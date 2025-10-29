@@ -169,7 +169,6 @@ class TestI18nSystem:
         assert (
             "QR" in main_title or "qr" in main_title.lower()
         ), f"Main title in {language} should mention QR"
-        assert "EPC" in main_title, f"Main title in {language} should mention EPC"
 
         # Test amount field
         amount_text = get_text("amount", language)

@@ -34,7 +34,11 @@ def run_with_uvx(args):
         "qrcode[pil]",
         "--with",
         "pillow",
+        "--with",
+        "ipdb",
         "pytest",
+        "--pdb",
+        "-s",
     ] + args
     print(f"Running: {' '.join(cmd)}")
     return subprocess.run(cmd)
@@ -63,13 +67,8 @@ def main():
     print("🧪 EPC QR Code Generator - Test Runner")
     print("=" * 50)
 
-    # Try to run tests
-    if check_pytest_available():
-        print("✓ Using installed pytest")
-        result = run_with_python(args)
-    else:
-        print("📦 Using uvx to run pytest")
-        result = run_with_uvx(args)
+    print("📦 Using uvx to run pytest")
+    result = run_with_uvx(args)
 
     # Print summary
     if result.returncode == 0:
