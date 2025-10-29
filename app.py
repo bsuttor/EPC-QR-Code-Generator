@@ -24,6 +24,7 @@ def get_url_params():
     - ref: Remittance information/reference
     - debtor_ref: Structured reference
     - lang: Language override
+    - hide: Hide all fields except amount (any value activates this)
     """
     params = {}
 
@@ -40,6 +41,7 @@ def get_url_params():
         "remittance_info": "remittance_info",
         "structured_ref": "debtor_reference",
         "lang": "language",
+        "hide": "hide",
         # Short aliases for convenience
         "name": "beneficiary_name",
         "iban": "beneficiary_iban",
@@ -279,6 +281,9 @@ def main():
     # Get URL parameters for pre-filling form
     url_params = get_url_params()
 
+    # Check if fields should be hidden (only show amount)
+    hide_fields = "hide" in url_params
+
     # Override language if specified in URL
     if "language" in url_params:
         url_lang = (
@@ -369,9 +374,16 @@ def main():
         sample = sample_urls.get(lang, sample_urls["en"])
         sample_url = f"{current_url}/?beneficiary_name={sample['name'].replace(' ', '%20')}&beneficiary_iban={sample['iban']}&amount={sample['amount']}&structured_ref={sample['ref'].replace(' ', '%20')}&lang={lang}"
 
+        # Hide mode example
+        hide_sample_url = f"{current_url}/?hide&name={sample['name'].replace(' ', '%20')}&iban={sample['iban']}&amount={sample['amount']}&lang={lang}"
+
+        st.markdown("**Regular mode (all fields visible):**")
         st.code(sample_url, language="text")
 
-        col_example1, col_example2 = st.columns([1, 1])
+        st.markdown("**Hide mode (only amount field visible):**")
+        st.code(hide_sample_url, language="text")
+
+        col_example1, col_example2, col_example3 = st.columns([1, 1, 1])
 
         with col_example1:
             if st.button(get_text("quick_qr_try", lang), key="try_sample_url"):
@@ -384,6 +396,16 @@ def main():
                 st.rerun()
 
         with col_example2:
+            if st.button("Try Hide Mode", key="try_hide_mode"):
+                st.query_params.clear()
+                st.query_params["hide"] = ""
+                st.query_params["name"] = sample["name"]
+                st.query_params["iban"] = sample["iban"]
+                st.query_params["amount"] = sample["amount"]
+                st.query_params["lang"] = lang
+                st.rerun()
+
+        with col_example3:
             st.link_button(
                 get_text("url_parameters_guide", lang),
                 "https://github.com/bsuttor/EPC-QR-Code-Generator/tree/main?tab=readme-ov-file#supported-url-parameters",
@@ -398,6 +420,12 @@ def main():
     with col1:
         st.header(get_text("payment_info", lang))
 
+        # Show info message when hide mode is active
+        if hide_fields:
+            st.info(
+                "🔒 Simplified mode: Only amount field is visible. Other payment details are pre-filled from URL parameters."
+            )
+
         # Show info about URL updating when form is generated
         # if url_params:
         #     st.info(get_text("url_prefilled", lang))
@@ -405,32 +433,40 @@ def main():
         #     st.info(get_text("url_updates_info", lang))
 
         # Beneficiary Information
-        st.subheader(get_text("beneficiary_details", lang))
-        beneficiary_name = st.text_input(
-            get_text("beneficiary_name", lang) + " *",
-            value=url_params.get("beneficiary_name", ""),
-            placeholder=get_text("beneficiary_name_placeholder", lang),
-            max_chars=70,
-            help=get_text("beneficiary_name_help", lang),
-        )
-
-        beneficiary_iban = (
-            st.text_input(
-                get_text("beneficiary_iban", lang) + " *",
-                value=url_params.get("beneficiary_iban", ""),
-                placeholder=get_text("beneficiary_iban_placeholder", lang),
-                help=get_text("beneficiary_iban_help", lang),
+        if not hide_fields:
+            st.subheader(get_text("beneficiary_details", lang))
+            beneficiary_name = st.text_input(
+                get_text("beneficiary_name", lang) + " *",
+                value=url_params.get("beneficiary_name", ""),
+                placeholder=get_text("beneficiary_name_placeholder", lang),
+                max_chars=70,
+                help=get_text("beneficiary_name_help", lang),
             )
-            .replace(" ", "")
-            .upper()
-        )
 
-        bic = st.text_input(
-            get_text("bic_swift", lang),
-            value=url_params.get("bic", ""),
-            placeholder=get_text("bic_swift_placeholder", lang),
-            help=get_text("bic_swift_help", lang),
-        ).upper()
+            beneficiary_iban = (
+                st.text_input(
+                    get_text("beneficiary_iban", lang) + " *",
+                    value=url_params.get("beneficiary_iban", ""),
+                    placeholder=get_text("beneficiary_iban_placeholder", lang),
+                    help=get_text("beneficiary_iban_help", lang),
+                )
+                .replace(" ", "")
+                .upper()
+            )
+
+            bic = st.text_input(
+                get_text("bic_swift", lang),
+                value=url_params.get("bic", ""),
+                placeholder=get_text("bic_swift_placeholder", lang),
+                help=get_text("bic_swift_help", lang),
+            ).upper()
+        else:
+            # Use default/hidden values when hide mode is active
+            beneficiary_name = url_params.get("beneficiary_name", "")
+            beneficiary_iban = (
+                url_params.get("beneficiary_iban", "").replace(" ", "").upper()
+            )
+            bic = url_params.get("bic", "").upper()
 
         # Payment Details
         st.subheader(get_text("payment_details", lang))
@@ -452,80 +488,81 @@ def main():
             help=get_text("amount_help", lang),
         )
 
-        debtor_reference = st.text_input(
-            get_text("structured_ref", lang),
-            value=url_params.get("debtor_reference", ""),
-            placeholder=get_text("structured_ref_placeholder", lang),
-            max_chars=35,
-            help=get_text("structured_ref_help", lang),
-        )
+        if not hide_fields:
+            debtor_reference = st.text_input(
+                get_text("structured_ref", lang),
+                value=url_params.get("debtor_reference", ""),
+                placeholder=get_text("structured_ref_placeholder", lang),
+                max_chars=35,
+                help=get_text("structured_ref_help", lang),
+            )
 
-        purpose_options = get_purpose_options(lang)
-        with st.expander(get_text("purpose_code", lang), expanded=False):
-            # Find default purpose index from URL parameter
-            purpose_default_index = 0
+            purpose_options = get_purpose_options(lang)
+            with st.expander(get_text("purpose_code", lang), expanded=False):
+                # Find default purpose index from URL parameter
+                purpose_default_index = 0
+                purpose_keys = list(purpose_options.keys())
+                if "purpose" in url_params and url_params["purpose"] in purpose_keys:
+                    purpose_default_index = purpose_keys.index(url_params["purpose"])
+
+                purpose_key = st.selectbox(
+                    get_text("purpose_code", lang),
+                    options=purpose_keys,
+                    index=purpose_default_index,
+                    format_func=lambda x: (
+                        f"{x} - {purpose_options[x]}" if x else purpose_options[x]
+                    ),
+                    help=get_text("purpose_help", lang),
+                )
+        else:
+            # Use default/hidden values when hide mode is active
+            debtor_reference = url_params.get("debtor_reference", "")
+            purpose_options = get_purpose_options(lang)
             purpose_keys = list(purpose_options.keys())
             if "purpose" in url_params and url_params["purpose"] in purpose_keys:
-                purpose_default_index = purpose_keys.index(url_params["purpose"])
+                purpose_key = url_params["purpose"]
+            else:
+                purpose_key = purpose_keys[0] if purpose_keys else ""
 
-            purpose_key = st.selectbox(
-                get_text("purpose_code", lang),
-                options=purpose_keys,
-                index=purpose_default_index,
-                format_func=lambda x: (
-                    f"{x} - {purpose_options[x]}" if x else purpose_options[x]
-                ),
-                help=get_text("purpose_help", lang),
-            )
-
-        with st.expander(get_text("remittance_info", lang), expanded=False):
-            remittance_info = st.text_area(
-                get_text("remittance_info", lang),
-                value=url_params.get("remittance_info", ""),
-                placeholder=get_text("remittance_info_placeholder", lang),
-                max_chars=140,
-                help=get_text("remittance_info_help", lang),
-            )
+        if not hide_fields:
+            with st.expander(get_text("remittance_info", lang), expanded=False):
+                remittance_info = st.text_area(
+                    get_text("remittance_info", lang),
+                    value=url_params.get("remittance_info", ""),
+                    placeholder=get_text("remittance_info_placeholder", lang),
+                    max_chars=140,
+                    help=get_text("remittance_info_help", lang),
+                )
+        else:
+            # Use default/hidden value when hide mode is active
+            remittance_info = url_params.get("remittance_info", "")
 
         # Logo Options
-        st.subheader(get_text("qr_customization", lang))
-        add_logo = st.checkbox(
-            get_text("add_logo", lang),
-            value=True,
-            help=get_text("add_logo_help", lang),
-        )
-
-        logo_option = st.radio(
-            get_text("logo_type", lang),
-            [
-                get_text("default_logo", lang),
-                get_text("papas_logo", lang),
-                get_text("custom_upload", lang),
-            ],
-            disabled=not add_logo,
-            help=get_text("logo_type_help", lang),
-        )
-
-        custom_logo = None
-        if add_logo and logo_option == get_text("papas_logo", lang):
-            # Load papas logo
-            try:
-                papas_logo = Image.open("logo_papas.jpg").convert("RGBA")
-                custom_logo = papas_logo
-                # Show preview
-                st.image(custom_logo, caption=get_text("logo_preview", lang), width=100)
-            except Exception as e:
-                st.error(get_text("error_loading_logo", lang) + str(e))
-                custom_logo = None
-        elif add_logo and logo_option == get_text("custom_upload", lang):
-            uploaded_file = st.file_uploader(
-                get_text("upload_logo", lang),
-                type=["png", "jpg", "jpeg"],
-                help=get_text("upload_logo_help", lang),
+        if not hide_fields:
+            st.subheader(get_text("qr_customization", lang))
+            add_logo = st.checkbox(
+                get_text("add_logo", lang),
+                value=True,
+                help=get_text("add_logo_help", lang),
             )
-            if uploaded_file is not None:
+
+            logo_option = st.radio(
+                get_text("logo_type", lang),
+                [
+                    get_text("default_logo", lang),
+                    get_text("papas_logo", lang),
+                    get_text("custom_upload", lang),
+                ],
+                disabled=not add_logo,
+                help=get_text("logo_type_help", lang),
+            )
+
+            custom_logo = None
+            if add_logo and logo_option == get_text("papas_logo", lang):
+                # Load papas logo
                 try:
-                    custom_logo = Image.open(uploaded_file).convert("RGBA")
+                    papas_logo = Image.open("logo_papas.jpg").convert("RGBA")
+                    custom_logo = papas_logo
                     # Show preview
                     st.image(
                         custom_logo, caption=get_text("logo_preview", lang), width=100
@@ -533,9 +570,43 @@ def main():
                 except Exception as e:
                     st.error(get_text("error_loading_logo", lang) + str(e))
                     custom_logo = None
+            elif add_logo and logo_option == get_text("custom_upload", lang):
+                uploaded_file = st.file_uploader(
+                    get_text("upload_logo", lang),
+                    type=["png", "jpg", "jpeg"],
+                    help=get_text("upload_logo_help", lang),
+                )
+                if uploaded_file is not None:
+                    try:
+                        custom_logo = Image.open(uploaded_file).convert("RGBA")
+                        # Show preview
+                        st.image(
+                            custom_logo,
+                            caption=get_text("logo_preview", lang),
+                            width=100,
+                        )
+                    except Exception as e:
+                        st.error(get_text("error_loading_logo", lang) + str(e))
+                        custom_logo = None
+        else:
+            # Use default settings when hide mode is active
+            add_logo = True
+            custom_logo = None
 
         # Validation
-        is_valid = bool(beneficiary_name and beneficiary_iban)
+        if hide_fields:
+            # When hiding fields, use URL parameters for validation
+            # Only require amount (visible field), and use defaults for others if not provided
+            is_valid = bool(
+                beneficiary_name or url_params.get("beneficiary_name")
+            ) and bool(beneficiary_iban or url_params.get("beneficiary_iban"))
+            # If required fields are missing from URL params, show a message
+            if not is_valid:
+                st.warning(
+                    "Required fields (beneficiary name and IBAN) must be provided in URL parameters when using hide mode."
+                )
+        else:
+            is_valid = bool(beneficiary_name and beneficiary_iban)
 
         if st.button(
             get_text("generate_qr", lang), disabled=not is_valid, type="primary"
