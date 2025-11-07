@@ -86,6 +86,7 @@ def generate_share_url(params: dict) -> str:
         "remittance_info": "remittance_info",
         "debtor_reference": "structured_ref",
         "language": "lang",
+        "logo": "logo",
     }
 
     # Build query parameters, filtering out empty values
@@ -130,6 +131,7 @@ def update_url_params(params: dict) -> None:
         "remittance_info": "remittance_info",
         "debtor_reference": "structured_ref",
         "language": "lang",
+        "logo": "logo",
     }
 
     # Clear existing parameters and set new ones
@@ -674,6 +676,24 @@ def main():
 
                     st.success(get_text("qr_code_generated", lang))
 
+                    # Determine logo parameter value
+                    logo_param_value = "default"
+                    if not add_logo:
+                        logo_param_value = "none"
+                    elif custom_logo is not None:
+                        # Check if it's the papas logo (custom_logo was set from papas logo file)
+                        if not hide_fields and logo_option == get_text(
+                            "papas_logo", lang
+                        ):
+                            logo_param_value = "papas"
+                        elif (
+                            hide_fields
+                            and url_params.get("logo", "").lower() == "papas"
+                        ):
+                            logo_param_value = "papas"
+                        else:
+                            logo_param_value = "custom"
+
                     # Update URL parameters to reflect current form state
                     current_params = {
                         "beneficiary_name": beneficiary_name,
@@ -684,6 +704,7 @@ def main():
                         "remittance_info": remittance_info,
                         "debtor_reference": debtor_reference,
                         "language": lang,
+                        "logo": logo_param_value,
                     }
                     update_url_params(current_params)
 
@@ -715,6 +736,12 @@ def main():
             # URL Sharing functionality
             st.subheader(get_text("share_url", lang))
 
+            # Determine logo parameter from session state or URL params
+            logo_param_value = "default"
+            if "payment_info" in st.session_state:
+                # Try to get from URL params first
+                logo_param_value = url_params.get("logo", "default")
+
             # Generate shareable URL with current form values
             current_params = {
                 "beneficiary_name": beneficiary_name,
@@ -725,6 +752,7 @@ def main():
                 "remittance_info": remittance_info,
                 "debtor_reference": debtor_reference,
                 "language": lang,
+                "logo": logo_param_value,
             }
 
             share_url = generate_share_url(current_params)
