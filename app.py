@@ -93,11 +93,15 @@ def generate_share_url(params: dict) -> str:
     # Build query parameters, filtering out empty values
     query_params = {}
     for field_name, url_param in reverse_mapping.items():
-        if field_name in params and params[field_name]:
-            # Handle special cases
-            if field_name == "amount" and params[field_name] == 0.0:
-                continue  # Skip zero amounts
-            query_params[url_param] = str(params[field_name])
+        if field_name in params:
+            # Special handling for 'hide' parameter - always include it even if empty
+            if field_name == "hide":
+                query_params[url_param] = ""
+            elif params[field_name]:
+                # Handle special cases
+                if field_name == "amount" and params[field_name] == 0.0:
+                    continue  # Skip zero amounts
+                query_params[url_param] = str(params[field_name])
 
     # Get current URL base (without query parameters)
     if hasattr(st, "query_params"):
@@ -140,10 +144,13 @@ def update_url_params(params: dict) -> None:
     st.query_params.clear()
 
     for field_name, value in params.items():
-        if field_name in url_mapping and value:
+        if field_name in url_mapping:
             url_param = url_mapping[field_name]
-            # Only add non-empty values
-            if str(value).strip():
+            # Special handling for 'hide' parameter - always include it even if empty
+            if field_name == "hide":
+                st.query_params[url_param] = ""
+            elif value and str(value).strip():
+                # Only add non-empty values for other parameters
                 st.query_params[url_param] = str(value)
 
 
