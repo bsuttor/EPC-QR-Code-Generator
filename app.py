@@ -87,6 +87,7 @@ def generate_share_url(params: dict) -> str:
         "debtor_reference": "structured_ref",
         "language": "lang",
         "logo": "logo",
+        "hide": "hide",
     }
 
     # Build query parameters, filtering out empty values
@@ -132,6 +133,7 @@ def update_url_params(params: dict) -> None:
         "debtor_reference": "structured_ref",
         "language": "lang",
         "logo": "logo",
+        "hide": "hide",
     }
 
     # Clear existing parameters and set new ones
@@ -706,6 +708,9 @@ def main():
                         "language": lang,
                         "logo": logo_param_value,
                     }
+                    # Keep hide parameter if it was in the URL
+                    if hide_fields:
+                        current_params["hide"] = ""
                     update_url_params(current_params)
 
                 except Exception as e:
@@ -754,6 +759,9 @@ def main():
                 "language": lang,
                 "logo": logo_param_value,
             }
+            # Keep hide parameter if it was in the URL
+            if hide_fields:
+                current_params["hide"] = ""
 
             share_url = generate_share_url(current_params)
 
