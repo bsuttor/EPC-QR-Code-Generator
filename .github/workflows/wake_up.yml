@@ -10,22 +10,8 @@ on:
   workflow_dispatch:
 
 jobs:
-  build:
+  ping:
     runs-on: ubuntu-latest
-    permissions:
-      # Grant write permission to the GITHUB_TOKEN to commit and push changes.
-      contents: write
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          # This line fetches the entire history, which is required for making commits.
-          fetch-depth: 0
-      - name: Configure Git
-        run: |
-          git config user.name "GitHub Actions"
-          git config user.email "github-actions@github.com"
-      - name: Create and push empty commit
-        run: |
-          git commit --allow-empty -m "Wake up Streamlit app"
-          git push origin main
+      - name: Ping app to keep it awake
+        run: curl -sSf https://lespapas.streamlit.app/ -o /dev/null
