@@ -126,6 +126,8 @@
   "features": "**Funktionen:**",
   "fill_payment_info": "Geben Sie die Zahlungsinformationen ein und klicken Sie auf 'QR-Code generieren', um Ihren EPC QR-Code zu erstellen.",
   "fill_required_fields": "Bitte füllen Sie alle Pflichtfelder (*) aus",
+  "invalid_iban": "Die eingegebene IBAN ist ungültig. Bitte überprüfen Sie sie und versuchen Sie es erneut.",
+  "invalid_bic": "Der eingegebene BIC/SWIFT-Code ist ungültig.",
   "flexible_amounts": "✅ Unterstützt feste und variable Beträge",
   "generated_qr_code": "Generierter QR-Code",
   "iban": "IBAN:",

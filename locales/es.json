@@ -39,6 +39,8 @@
   "error_loading_logo": "Error al cargar el logo: ",
   "generate_qr": "Generar Código QR",
   "fill_required_fields": "Por favor complete todos los campos obligatorios (*)",
+  "invalid_iban": "El IBAN introducido no es válido. Compruébelo e inténtelo de nuevo.",
+  "invalid_bic": "El código BIC/SWIFT introducido no es válido.",
   "qr_generated_success": "¡Código QR generado exitosamente!",
   "error_generating_qr": "Error al generar el código QR: ",
   "generated_qr_code": "Código QR Generado",

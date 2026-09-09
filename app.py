@@ -1,3 +1,4 @@
+import re
 import streamlit as st
 import qrcode
 from io import BytesIO
@@ -10,6 +11,55 @@ from i18n import (
     set_streamlit_language,
     render_language_footer,
 )
+
+
+# Canonical mapping between internal field names and the (long-form) URL
+# query parameter names used when reading and building links. Shared by
+# get_url_params, generate_share_url and update_url_params so the parameter
+# names can't drift out of sync between them.
+FIELD_TO_URL_PARAM = {
+    "beneficiary_name": "beneficiary_name",
+    "beneficiary_iban": "beneficiary_iban",
+    "bic": "bic_swift",
+    "amount": "amount",
+    "purpose": "purpose_code",
+    "remittance_info": "remittance_info",
+    "debtor_reference": "structured_ref",
+    "language": "lang",
+    "logo": "logo",
+    "hide": "hide",
+}
+
+# Extra short aliases accepted when reading incoming URL parameters, on top
+# of the canonical names in FIELD_TO_URL_PARAM.
+URL_PARAM_ALIASES = {
+    "name": "beneficiary_name",
+    "iban": "beneficiary_iban",
+    "bic": "bic",
+    "purpose": "purpose",
+    "ref": "remittance_info",
+}
+
+
+def is_valid_iban(iban: str) -> bool:
+    """
+    Validate an IBAN's format and checksum (ISO 7064 MOD 97-10).
+
+    Catches typos before they end up in a QR code that will only fail once
+    scanned at the bank.
+    """
+    iban = iban.replace(" ", "").upper()
+    if not re.fullmatch(r"[A-Z]{2}[0-9]{2}[A-Z0-9]{11,30}", iban):
+        return False
+    rearranged = iban[4:] + iban[:4]
+    numeric = "".join(str(int(ch, 36)) for ch in rearranged)
+    return int(numeric) % 97 == 1
+
+
+def is_valid_bic(bic: str) -> bool:
+    """Validate a BIC/SWIFT code's format (8 or 11 alphanumeric characters)."""
+    bic = bic.replace(" ", "").upper()
+    return bool(re.fullmatch(r"[A-Z]{6}[A-Z0-9]{2}([A-Z0-9]{3})?", bic))
 
 
 def get_url_params():
@@ -32,25 +82,12 @@ def get_url_params():
     # Get URL query parameters from Streamlit
     query_params = st.query_params if hasattr(st, "query_params") else {}
 
-    # Map URL parameter names to internal field names
+    # Map URL parameter names to internal field names: canonical long-form
+    # names plus the short aliases accepted for convenience.
     param_mapping = {
-        "beneficiary_name": "beneficiary_name",
-        "beneficiary_iban": "beneficiary_iban",
-        "bic_swift": "bic",
-        "amount": "amount",
-        "purpose_code": "purpose",
-        "remittance_info": "remittance_info",
-        "structured_ref": "debtor_reference",
-        "lang": "language",
-        "hide": "hide",
-        "logo": "logo",
-        # Short aliases for convenience
-        "name": "beneficiary_name",
-        "iban": "beneficiary_iban",
-        "bic": "bic",
-        "purpose": "purpose",
-        "ref": "remittance_info",
+        url_param: field_name for field_name, url_param in FIELD_TO_URL_PARAM.items()
     }
+    param_mapping.update(URL_PARAM_ALIASES)
 
     # Extract and decode parameters
     for url_param, field_name in param_mapping.items():
@@ -65,34 +102,39 @@ def get_url_params():
     return params
 
 
-def generate_share_url(params: dict) -> str:
+def get_current_base_url() -> str:
+    """
+    Get the base URL (scheme + host, no path or query string) of the
+    running app, so shareable/sample links point at the real deployment
+    instead of a hardcoded localhost fallback.
+    """
+    base_url = "http://localhost:8501"  # Default for local development
+    if hasattr(st, "context") and hasattr(st.context, "url"):
+        try:
+            context_url = getattr(st.context, "url", None)
+            if context_url:
+                base_url = context_url.split("?")[0].rstrip("/")
+        except Exception:
+            pass
+    return base_url
+
+
+def generate_share_url(params: dict, base_url: str = None) -> str:
     """
     Generate a shareable URL with form parameters.
 
     Args:
         params: Dictionary of form parameters
+        base_url: Base URL (scheme + host) to build the link from. If not
+            provided, falls back to the current app's base URL.
 
     Returns:
         Complete URL with query parameters
     """
 
-    # Map internal field names to URL parameter names
-    reverse_mapping = {
-        "beneficiary_name": "beneficiary_name",
-        "beneficiary_iban": "beneficiary_iban",
-        "bic": "bic_swift",
-        "amount": "amount",
-        "purpose": "purpose_code",
-        "remittance_info": "remittance_info",
-        "debtor_reference": "structured_ref",
-        "language": "lang",
-        "logo": "logo",
-        "hide": "hide",
-    }
-
     # Build query parameters, filtering out empty values
     query_params = {}
-    for field_name, url_param in reverse_mapping.items():
+    for field_name, url_param in FIELD_TO_URL_PARAM.items():
         if field_name in params:
             # Special handling for 'hide' parameter - always include it even if empty
             if field_name == "hide":
@@ -103,11 +145,8 @@ def generate_share_url(params: dict) -> str:
                     continue  # Skip zero amounts
                 query_params[url_param] = str(params[field_name])
 
-    # Get current URL base (without query parameters)
-    if hasattr(st, "query_params"):
-        base_url = st.query_params.get("__streamlit_url", "http://localhost:8501")
-    else:
-        base_url = "http://localhost:8501"  # fallback
+    if base_url is None:
+        base_url = get_current_base_url()
 
     if query_params:
         query_string = urlencode(query_params, safe="", quote_via=quote)
@@ -126,26 +165,12 @@ def update_url_params(params: dict) -> None:
     if not hasattr(st, "query_params"):
         return
 
-    # Map internal field names to URL parameter names
-    url_mapping = {
-        "beneficiary_name": "beneficiary_name",
-        "beneficiary_iban": "beneficiary_iban",
-        "bic": "bic_swift",
-        "amount": "amount",
-        "purpose": "purpose_code",
-        "remittance_info": "remittance_info",
-        "debtor_reference": "structured_ref",
-        "language": "lang",
-        "logo": "logo",
-        "hide": "hide",
-    }
-
     # Clear existing parameters and set new ones
     st.query_params.clear()
 
     for field_name, value in params.items():
-        if field_name in url_mapping:
-            url_param = url_mapping[field_name]
+        if field_name in FIELD_TO_URL_PARAM:
+            url_param = FIELD_TO_URL_PARAM[field_name]
             # Special handling for 'hide' parameter - always include it even if empty
             if field_name == "hide":
                 st.query_params[url_param] = ""
@@ -332,7 +357,7 @@ def main():
             color: inherit !important;
         }}
         </style>
-        # [{get_text('main_title', lang)}](/)
+        # [{get_text("main_title", lang)}](/)
         """,
         unsafe_allow_html=True,
     )
@@ -343,12 +368,7 @@ def main():
         st.markdown(get_text("quick_qr_explanation", lang))
 
         # Get current URL base
-        current_url = "http://localhost:8501"  # Default for local development
-        if hasattr(st.context, "url"):
-            try:
-                current_url = getattr(st.context, "url", current_url)
-            except Exception:
-                pass
+        current_url = get_current_base_url()
 
         # Sample URLs with different examples
         sample_urls = {
@@ -648,6 +668,14 @@ def main():
                 )
         else:
             is_valid = bool(beneficiary_name and beneficiary_iban)
+
+        if is_valid and beneficiary_iban and not is_valid_iban(beneficiary_iban):
+            is_valid = False
+            st.error(get_text("invalid_iban", lang))
+
+        if is_valid and bic and not is_valid_bic(bic):
+            is_valid = False
+            st.error(get_text("invalid_bic", lang))
 
         if st.button(
             get_text("generate_qr", lang), disabled=not is_valid, type="primary"

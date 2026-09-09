@@ -39,6 +39,8 @@
   "error_loading_logo": "Fout bij laden logo: ",
   "generate_qr": "Genereer QR Code",
   "fill_required_fields": "Vul alle verplichte velden (*) in",
+  "invalid_iban": "Het ingevoerde IBAN is ongeldig. Controleer het en probeer het opnieuw.",
+  "invalid_bic": "De ingevoerde BIC/SWIFT-code is ongeldig.",
   "qr_generated_success": "QR Code succesvol gegenereerd!",
   "error_generating_qr": "Fout bij genereren QR-code: ",
   "generated_qr_code": "Gegenereerde QR Code",
